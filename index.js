@@ -21,15 +21,29 @@ nunjucks.configure('views', {
     express: app
 });
 
+client.connect()
+
 
 app.get('/', async (req, res) => {
 
-    await client.connect()
-    const results = await client.query('select * from artist')
-    await client.end()    
+    let query = req.query.q
+    let results = []
+
+    if(query !== undefined) {
+        query = query.toLowerCase()
+        let likeQuery = `%${query}%`
+        results = await client.query(`
+                SELECT track.name, album.title AS album_title, artist.name AS artist_name 
+                FROM track 
+                INNER JOIN album ON track.album_id = album.album_id 
+                INNER JOIN artist ON album.artist_id = artist.artist_id 
+                WHERE LOWER(track.name) LIKE $1`, [likeQuery]);
+    }
+
+
 
     // Render index.njk using the variable "title" 
-    res.render('index.njk', { title: "Artists", rows: results.rows });
+    res.render('search.njk', { title: "Search", query: query, rows: results.rows});
 })
 
 app.get('/artist/:id', async (req, res) => {
